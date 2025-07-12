@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, ChevronDown, ChevronRight, Plus, X, Edit2, Check, GripVertical, Folder, List, AlertCircle, LogOut, User, Move } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
@@ -140,6 +140,7 @@ const TodoApp = () => {
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [view, setView] = useState('project'); // 'project' or 'task'
+  const [projectDisplayMode, setProjectDisplayMode] = useState('auto'); // 'auto', '1', '2', '3'
   const [taskSort, setTaskSort] = useState('custom'); // 'custom', 'created', 'due'
   const [isCompact, setIsCompact] = useState(true); // start in compact mode
   const [expandedProjects, setExpandedProjects] = useState(new Set());
@@ -161,36 +162,7 @@ const TodoApp = () => {
     checkUser();
   }, []);
 
-  // Load data when user logs in
-  useEffect(() => {
-    if (user) {
-      loadData();
-    }
-  }, [user]);
-
-  const checkUser = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-    } catch (err) {
-      console.error('Error checking user:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      setUser(null);
-      setProjects([]);
-      setTasks([]);
-    } catch (err) {
-      console.error('Error logging out:', err);
-    }
-  };
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -231,6 +203,35 @@ const TodoApp = () => {
       console.error('Error loading data:', err);
     } finally {
       setLoading(false);
+    }
+  }, [user]);
+
+  // Load data when user logs in
+  useEffect(() => {
+    if (user) {
+      loadData();
+    }
+  }, [user, loadData]);
+
+  const checkUser = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    } catch (err) {
+      console.error('Error checking user:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setProjects([]);
+      setTasks([]);
+    } catch (err) {
+      console.error('Error logging out:', err);
     }
   };
 
@@ -490,6 +491,7 @@ const TodoApp = () => {
         });
         break;
       case 'custom':
+      default:
         uncompleted.sort((a, b) => a.order_index - b.order_index);
         completed.sort((a, b) => a.order_index - b.order_index);
         break;
@@ -596,6 +598,21 @@ const TodoApp = () => {
   // Get project by ID
   const getProject = (projectId) => projects.find(p => p.id === projectId);
 
+  // Get grid classes based on display mode
+  const getProjectGridClasses = () => {
+    switch (projectDisplayMode) {
+      case '1':
+        return 'grid-cols-1';
+      case '2':
+        return 'grid-cols-2';
+      case '3':
+        return 'grid-cols-3';
+      case 'auto':
+      default:
+        return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
+    }
+  };
+
   // Show loading state
   if (loading) {
     return (
@@ -695,6 +712,49 @@ const TodoApp = () => {
             </button>
           </div>
 
+          {/* Project View Display Mode Options */}
+          {view === 'project' && (
+            <div className="flex gap-2 items-center mb-3">
+              <span className={`${isCompact ? 'text-xs' : 'text-sm'} text-gray-600`}>Display:</span>
+              <button
+                onClick={() => setProjectDisplayMode('auto')}
+                className={`${isCompact ? 'px-2 py-0.5 text-xs' : 'px-3 py-1 text-sm'} rounded ${projectDisplayMode === 'auto'
+                    ? 'bg-gray-800 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+              >
+                Auto
+              </button>
+              <button
+                onClick={() => setProjectDisplayMode('3')}
+                className={`${isCompact ? 'px-2 py-0.5 text-xs' : 'px-3 py-1 text-sm'} rounded ${projectDisplayMode === '3'
+                    ? 'bg-gray-800 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+              >
+                3 Columns
+              </button>
+              <button
+                onClick={() => setProjectDisplayMode('2')}
+                className={`${isCompact ? 'px-2 py-0.5 text-xs' : 'px-3 py-1 text-sm'} rounded ${projectDisplayMode === '2'
+                    ? 'bg-gray-800 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+              >
+                2 Columns
+              </button>
+              <button
+                onClick={() => setProjectDisplayMode('1')}
+                className={`${isCompact ? 'px-2 py-0.5 text-xs' : 'px-3 py-1 text-sm'} rounded ${projectDisplayMode === '1'
+                    ? 'bg-gray-800 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+              >
+                1 Column
+              </button>
+            </div>
+          )}
+
           {/* Task View Sort Options */}
           {view === 'task' && (
             <div className="flex gap-2 items-center">
@@ -730,9 +790,9 @@ const TodoApp = () => {
           )}
         </div>
 
-        {/* Project View - 2 Column Grid Layout */}
+        {/* Project View - Dynamic Grid Layout */}
         {view === 'project' && (
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+          <div className={`grid gap-4 ${getProjectGridClasses()}`}>
             {projects.map(project => (
               <div
                 key={project.id}
