@@ -28,6 +28,7 @@ const TodoApp = ({ user, onLogout }) => {
   const [taskSort, setTaskSort] = useState(SORT_OPTIONS.CUSTOM);
   const [expandedProjects, setExpandedProjects] = useState(new Set());
   const [weekViewOpen, setWeekViewOpen] = useState(true);
+  const [weekViewHeight, setWeekViewHeight] = useState(400);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -215,9 +216,11 @@ const TodoApp = ({ user, onLogout }) => {
       if (error) throw error;
 
       setTasks([...tasks, data]);
+      return data.id; // Return the new task ID for WeekView
     } catch (err) {
       console.error('Error adding task:', err);
       setError('Failed to add task');
+      return null;
     }
   };
 
@@ -453,8 +456,8 @@ const TodoApp = ({ user, onLogout }) => {
           onLogout={onLogout}
         />
 
-        <div className={`flex-1 flex flex-col ${weekViewOpen ? 'h-0' : ''}`}>
-          <div className={`flex-1 overflow-y-auto ${weekViewOpen ? 'max-h-[50vh]' : ''}`}>
+        <div className={`flex-1 flex flex-col`}>
+          <div className={`flex-1 overflow-y-auto`} style={weekViewOpen ? { maxHeight: `calc(100vh - ${weekViewHeight + 100}px)` } : {}}>
             {view === VIEW_MODES.PROJECT ? (
               <ProjectView
                 projects={projects}
@@ -524,6 +527,9 @@ const TodoApp = ({ user, onLogout }) => {
               onUpdateTask={updateTask}
               onDeleteTask={deleteTask}
               onTaskDragStart={handleTaskDragStart}
+              onAddTask={addTask}
+              height={weekViewHeight}
+              onHeightChange={setWeekViewHeight}
             />
           )}
         </div>

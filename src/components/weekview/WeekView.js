@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Calendar, RotateCcw } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Calendar, RotateCcw, Plus, GripHorizontal } from 'lucide-react';
 import Task from '../tasks/Task';
 import { getCurrentWeekDates, getDensityClasses } from '../../utils/helpers';
 import { DENSITY_MODES, THEME_MODES } from '../../utils/constants';
@@ -16,16 +16,57 @@ const WeekView = ({
   onToggleTask,
   onUpdateTask,
   onDeleteTask,
-  onTaskDragStart
+  onTaskDragStart,
+  onAddTask,
+  height,
+  onHeightChange
 }) => {
   const [weekAssignments, setWeekAssignments] = useState({});
   const [dragOverDay, setDragOverDay] = useState(null);
   const [dragOverTask, setDragOverTask] = useState(null);
   const [draggedAssignment, setDraggedAssignment] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [addingTaskDay, setAddingTaskDay] = useState(null);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskProject, setNewTaskProject] = useState('');
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeRef = useRef(null);
+  const containerRef = useRef(null);
 
   const weekDates = getCurrentWeekDates();
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  // Handle resize
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isResizing || !containerRef.current) return;
+      
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const newHeight = containerRect.bottom - e.clientY;
+      const minHeight = 200;
+      const maxHeight = window.innerHeight * 0.8;
+      
+      if (newHeight >= minHeight && newHeight <= maxHeight) {
+        onHeightChange(newHeight);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'ns-resize';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'default';
+    };
+  }, [isResizing, onHeightChange]);
 
   // Load week assignments from Supabase
   useEffect(() => {
@@ -214,6 +255,44 @@ const WeekView = ({
     }
   };
 
+  const handleAddTaskSubmit = async (dayIndex) => {
+    if (!newTaskTitle.trim() || !newTaskProject) return;
+
+    const assignedDate = weekDates[dayIndex].toISOString().split('T')[0];
+    
+    // Call the parent's onAddTask function
+    const newTaskId = await onAddTask(parseInt(newTaskProject), newTaskTitle, assignedDate);
+    
+    if (newTaskId) {
+      // Add the assignment to week view
+      try {
+        const { data, error } = await supabase
+          .from('week_assignments')
+          .insert([{
+            user_id: user.id,
+            task_id: newTaskId,
+            assigned_date: assignedDate,
+            order_index: (weekAssignments[assignedDate]?.length || 0)
+          }])
+          .select()
+          .single();
+
+        if (!error) {
+          setWeekAssignments(prev => ({
+            ...prev,
+            [assignedDate]: [...(prev[assignedDate] || []), data]
+          }));
+        }
+      } catch (err) {
+        console.error('Error assigning new task to week:', err);
+      }
+    }
+    
+    setNewTaskTitle('');
+    setNewTaskProject('');
+    setAddingTaskDay(null);
+  };
+
   const clearAllAssignments = async () => {
     if (!window.confirm('Clear all week assignments?')) return;
 
@@ -244,9 +323,22 @@ const WeekView = ({
   const iconSize = getDensityClasses(density, 'iconSizeSmall');
 
   return (
-    <div className={`border-t ${theme === THEME_MODES.DARK ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'
-      } ${getDensityClasses(density, 'padding')}`}>
-      <div className="flex items-center justify-between mb-3">
+    <div 
+      ref={containerRef}
+      className={`border-t ${theme === THEME_MODES.DARK ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'
+      } ${getDensityClasses(density, 'padding')} relative`}
+      style={{ height: height || '400px' }}
+    >
+      {/* Resize handle */}
+      <div
+        ref={resizeRef}
+        onMouseDown={() => setIsResizing(true)}
+        className={`absolute top-0 left-0 right-0 h-2 cursor-ns-resize flex items-center justify-center
+          ${theme === THEME_MODES.DARK ? 'hover:bg-gray-700' : 'hover:bg-gray-200'} transition-colors`}
+      >
+        <GripHorizontal size={16} className={theme === THEME_MODES.DARK ? 'text-gray-500' : 'text-gray-400'} />
+      </div>
+      <div className="flex items-center justify-between mb-3 mt-2">
         <h3 className={`${getDensityClasses(density, 'text')} font-semibold flex items-center gap-2 ${theme === THEME_MODES.DARK ? 'text-gray-100' : 'text-gray-800'
           }`}>
           <Calendar size={iconSize} />
@@ -297,7 +389,7 @@ const WeekView = ({
                   ${theme === THEME_MODES.DARK ? 'bg-gray-900' : 'bg-white'} ${getDensityClasses(density, 'rounded')} border-2 transition-all
                   ${dragOverDay === index ? 'border-blue-400 shadow-lg' : (theme === THEME_MODES.DARK ? 'border-gray-700' : 'border-gray-200')}
                   ${isToday ? (theme === THEME_MODES.DARK ? 'ring-2 ring-blue-400' : 'ring-2 ring-blue-200') : ''}
-                  min-h-[120px] flex flex-col
+                  min-h-[120px] flex flex-col relative
                 `}
               >
                 <div className={`${getDensityClasses(density, 'paddingSmall')} border-b ${theme === THEME_MODES.DARK ? 'border-gray-700' : 'border-gray-200'
@@ -316,6 +408,94 @@ const WeekView = ({
                 </div>
 
                 <div className={`flex-1 ${getDensityClasses(density, 'paddingSmall')} ${getDensityClasses(density, 'space')} overflow-y-auto`}>
+                  {/* Add task button */}
+                  {addingTaskDay !== index && (
+                    <button
+                      onClick={() => setAddingTaskDay(index)}
+                      className={`w-full ${getDensityClasses(density, 'buttonSmall')} ${getDensityClasses(density, 'text')} 
+                        border-2 border-dashed rounded-md flex items-center justify-center gap-1 transition-colors
+                        ${theme === THEME_MODES.DARK 
+                          ? 'border-gray-600 hover:border-gray-500 text-gray-400 hover:text-gray-300' 
+                          : 'border-gray-300 hover:border-gray-400 text-gray-500 hover:text-gray-600'
+                        }
+                      `}
+                    >
+                      <Plus size={14} />
+                      <span className={density === DENSITY_MODES.ULTRA_COMPACT ? 'hidden' : ''}>Add Task</span>
+                    </button>
+                  )}
+
+                  {/* Add task form */}
+                  {addingTaskDay === index && (
+                    <div className={`${getDensityClasses(density, 'space')} mb-2`}>
+                      <select
+                        value={newTaskProject}
+                        onChange={(e) => setNewTaskProject(e.target.value)}
+                        className={`w-full ${getDensityClasses(density, 'buttonSmall')} ${getDensityClasses(density, 'text')} 
+                          border rounded focus:outline-none
+                          ${theme === THEME_MODES.DARK
+                            ? 'border-gray-600 focus:border-blue-400 bg-gray-700 text-gray-100'
+                            : 'border-gray-300 focus:border-blue-500 bg-white text-gray-800'
+                          }
+                        `}
+                        autoFocus
+                      >
+                        <option value="">Select Project</option>
+                        {projects.map(p => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                      <input
+                        type="text"
+                        placeholder="Task title..."
+                        value={newTaskTitle}
+                        onChange={(e) => setNewTaskTitle(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleAddTaskSubmit(index);
+                          if (e.key === 'Escape') {
+                            setAddingTaskDay(null);
+                            setNewTaskTitle('');
+                            setNewTaskProject('');
+                          }
+                        }}
+                        className={`w-full ${getDensityClasses(density, 'buttonSmall')} ${getDensityClasses(density, 'text')} 
+                          border rounded focus:outline-none
+                          ${theme === THEME_MODES.DARK
+                            ? 'border-gray-600 focus:border-blue-400 bg-gray-700 text-gray-100'
+                            : 'border-gray-300 focus:border-blue-500 bg-white text-gray-800'
+                          }
+                        `}
+                      />
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handleAddTaskSubmit(index)}
+                          disabled={!newTaskProject || !newTaskTitle.trim()}
+                          className={`flex-1 ${getDensityClasses(density, 'buttonSmall')} ${getDensityClasses(density, 'text')} 
+                            bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300
+                          `}
+                        >
+                          Add
+                        </button>
+                        <button
+                          onClick={() => {
+                            setAddingTaskDay(null);
+                            setNewTaskTitle('');
+                            setNewTaskProject('');
+                          }}
+                          className={`${getDensityClasses(density, 'buttonSmall')} ${getDensityClasses(density, 'text')} 
+                            rounded transition-colors
+                            ${theme === THEME_MODES.DARK
+                              ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }
+                          `}
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {assignments.slice(0, 5).map((assignment) => {
                     const task = getTaskById(assignment.task_id);
                     const project = task ? getProjectById(task.project_id) : null;
@@ -371,7 +551,7 @@ const WeekView = ({
       )}
 
       <div className={`mt-3 ${density === DENSITY_MODES.ULTRA_COMPACT ? 'text-xs' : 'text-sm'} text-gray-500 text-center`}>
-        Drag tasks from above to assign them to days. Tasks can be assigned to multiple days.
+        Drag tasks from above to assign them to days. Click + to create a new task for a specific day.
       </div>
     </div>
   );

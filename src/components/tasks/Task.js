@@ -130,8 +130,8 @@ const Task = ({
             onClick={() => !task.completed && setIsEditing(true)}
           >
             {task.title}
-            {project && showProject && density !== DENSITY_MODES.ULTRA_COMPACT && (
-              <span className={`${density === DENSITY_MODES.COMPACT ? 'text-xs' : 'text-sm'} ml-2 ${theme === THEME_MODES.DARK ? 'text-gray-400' : 'text-gray-500'
+            {project && showProject && (
+              <span className={`${density === DENSITY_MODES.ULTRA_COMPACT || density === DENSITY_MODES.COMPACT ? 'text-xs' : 'text-sm'} ml-2 ${theme === THEME_MODES.DARK ? 'text-gray-400' : 'text-gray-500'
                 }`}>
                 ({project.name})
               </span>
