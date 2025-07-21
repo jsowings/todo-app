@@ -118,8 +118,55 @@ const WeekView = ({
 
   const handleDrop = async (e, dayIndex) => {
     e.preventDefault();
+    
+    const assignedDate = weekDates[dayIndex].toISOString().split('T')[0];
 
-    // Get the dragged task from the dataTransfer
+    // Check if this is an internal drag (moving between days)
+    if (draggedAssignment) {
+      // Don't do anything if dropping on the same day
+      if (draggedAssignment.assigned_date === assignedDate) {
+        setDraggedAssignment(null);
+        setDragOverDay(null);
+        return;
+      }
+
+      try {
+        // Update the assignment to the new date
+        const { error } = await supabase
+          .from('week_assignments')
+          .update({ 
+            assigned_date: assignedDate,
+            order_index: (weekAssignments[assignedDate]?.length || 0)
+          })
+          .eq('id', draggedAssignment.id)
+          .eq('user_id', user.id);
+
+        if (error) throw error;
+
+        // Update local state - remove from old day and add to new day
+        const oldDate = draggedAssignment.assigned_date;
+        const updatedAssignment = { ...draggedAssignment, assigned_date: assignedDate };
+        
+        setWeekAssignments(prev => {
+          const newAssignments = { ...prev };
+          // Remove from old day
+          if (newAssignments[oldDate]) {
+            newAssignments[oldDate] = newAssignments[oldDate].filter(a => a.id !== draggedAssignment.id);
+          }
+          // Add to new day
+          newAssignments[assignedDate] = [...(newAssignments[assignedDate] || []), updatedAssignment];
+          return newAssignments;
+        });
+      } catch (err) {
+        console.error('Error moving assignment:', err);
+      }
+      
+      setDraggedAssignment(null);
+      setDragOverDay(null);
+      return;
+    }
+
+    // Handle external drag (from task list)
     const draggedTaskData = e.dataTransfer.getData('text/plain');
     if (!draggedTaskData) return;
 
@@ -130,8 +177,6 @@ const WeekView = ({
       console.error('Error parsing dragged task data:', err);
       return;
     }
-
-    const assignedDate = weekDates[dayIndex].toISOString().split('T')[0];
 
     try {
       // Check if already assigned to this day
@@ -170,6 +215,8 @@ const WeekView = ({
   const handleTaskDragStart = (e, assignment) => {
     setDraggedAssignment(assignment);
     e.dataTransfer.effectAllowed = 'move';
+    // Store assignment data for potential cross-day moves
+    e.dataTransfer.setData('weekAssignment', JSON.stringify(assignment));
     e.stopPropagation(); // Prevent parent drag events
   };
 
@@ -326,7 +373,7 @@ const WeekView = ({
     <div 
       ref={containerRef}
       className={`border-t ${theme === THEME_MODES.DARK ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'
-      } ${getDensityClasses(density, 'padding')} relative`}
+      } ${getDensityClasses(density, 'padding')} relative flex flex-col`}
       style={{ height: height || '400px' }}
     >
       {/* Resize handle */}
@@ -373,7 +420,8 @@ const WeekView = ({
         <div className={`text-center py-8 ${theme === THEME_MODES.DARK ? 'text-gray-400' : 'text-gray-500'
           }`}>Loading week assignments...</div>
       ) : (
-        <div className={`grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 ${getDensityClasses(density, 'gap')}`}>
+        <div className={`flex-1 overflow-y-auto`}>
+          <div className={`grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 ${getDensityClasses(density, 'gap')}`}>
           {weekDates.map((date, index) => {
             const dateStr = date.toISOString().split('T')[0];
             const assignments = weekAssignments[dateStr] || [];
@@ -522,17 +570,10 @@ const WeekView = ({
                           isWeekView={true}
                           onToggle={onToggleTask}
                           onUpdate={onUpdateTask}
-                          onDelete={onDeleteTask}
+                          onDelete={() => removeAssignment(assignment.id, dateStr)} // Use removeAssignment instead of onDeleteTask
                           isDragOver={dragOverTask === assignment.id}
                           isDragging={draggedAssignment?.id === assignment.id}
                         />
-                        <button
-                          onClick={() => removeAssignment(assignment.id, dateStr)}
-                          className={`absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity ${density === DENSITY_MODES.ULTRA_COMPACT ? 'hidden' : ''
-                            }`}
-                        >
-                          <X size={12} />
-                        </button>
                       </div>
                     );
                   })}
@@ -547,6 +588,7 @@ const WeekView = ({
               </div>
             );
           })}
+          </div>
         </div>
       )}
 
