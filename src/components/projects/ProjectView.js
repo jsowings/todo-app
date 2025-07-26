@@ -11,6 +11,7 @@ const ProjectView = ({
   theme,
   displayMode,
   expandedProjects,
+  showCompleted,
   onToggleExpanded,
   onAddProject,
   onUpdateProject,
@@ -43,6 +44,7 @@ const ProjectView = ({
           tasks={tasks}
           density={density}
           theme={theme}
+          showCompleted={showCompleted}
           isExpanded={expandedProjects.has(project.id)}
           onToggleExpanded={() => onToggleExpanded(project.id)}
           onUpdateProject={onUpdateProject}

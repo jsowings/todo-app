@@ -9,6 +9,7 @@ const TaskView = ({
   density,
   theme,
   taskSort,
+  showCompleted,
   onAddTask,
   onToggleTask,
   onUpdateTask,
@@ -62,7 +63,7 @@ const TaskView = ({
         break;
     }
 
-    return [...uncompleted, ...completed];
+    return showCompleted ? [...uncompleted, ...completed] : uncompleted;
   };
 
   const getProject = (projectId) => projects.find(p => p.id === projectId);

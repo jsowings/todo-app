@@ -9,6 +9,7 @@ const Project = ({
   tasks,
   density,
   theme,
+  showCompleted,
   isExpanded,
   onToggleExpanded,
   onUpdateProject,
@@ -51,7 +52,7 @@ const Project = ({
   };
 
   const projectTasks = tasks
-    .filter(task => task.project_id === project.id)
+    .filter(task => task.project_id === project.id && (showCompleted || !task.completed))
     .sort((a, b) => {
       if (a.completed && !b.completed) return 1;
       if (!a.completed && b.completed) return -1;

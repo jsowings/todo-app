@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, LogOut, Folder, List, Layers, ChevronUp, ChevronDown, Archive, Moon, Sun } from 'lucide-react';
+import { User, LogOut, Folder, List, Layers, ChevronUp, ChevronDown, Archive, Moon, Sun, CheckSquare, Square } from 'lucide-react';
 import { DENSITY_MODES, VIEW_MODES, DISPLAY_MODES, SORT_OPTIONS, THEME_MODES } from '../../utils/constants';
 import { getDensityClasses } from '../../utils/helpers';
 
@@ -17,6 +17,8 @@ const Header = ({
     setTaskSort,
     weekViewOpen,
     setWeekViewOpen,
+    showCompleted,
+    setShowCompleted,
     onLogout
 }) => {
     const densityIcon = {
@@ -84,6 +86,18 @@ const Header = ({
                         >
                             {theme === THEME_MODES.LIGHT ? <Moon size={16} /> : <Sun size={16} />}
                         </button>
+                        {/* Show Completed Toggle */}
+                        <button
+                            onClick={() => setShowCompleted(!showCompleted)}
+                            className={`${getDensityClasses(density, 'buttonSmall')} ${density === DENSITY_MODES.ULTRA_COMPACT ? 'text-xs' : 'text-sm'} rounded flex items-center gap-1 ${theme === THEME_MODES.DARK
+                                ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                            title={showCompleted ? 'Hide completed tasks' : 'Show completed tasks'}
+                        >
+                            {showCompleted ? <CheckSquare size={16} /> : <Square size={16} />}
+                            <span className="hidden sm:inline">Completed</span>
+                        </button>
                     </>
                 )}
 
@@ -117,6 +131,18 @@ const Header = ({
                             title={`Switch to ${theme === THEME_MODES.LIGHT ? 'dark' : 'light'} theme`}
                         >
                             {theme === THEME_MODES.LIGHT ? <Moon size={16} /> : <Sun size={16} />}
+                        </button>
+                        {/* Show Completed Toggle */}
+                        <button
+                            onClick={() => setShowCompleted(!showCompleted)}
+                            className={`${getDensityClasses(density, 'buttonSmall')} ${density === DENSITY_MODES.ULTRA_COMPACT ? 'text-xs' : 'text-sm'} rounded flex items-center gap-1 ${theme === THEME_MODES.DARK
+                                ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                            title={showCompleted ? 'Hide completed tasks' : 'Show completed tasks'}
+                        >
+                            {showCompleted ? <CheckSquare size={16} /> : <Square size={16} />}
+                            <span className="hidden sm:inline">Completed</span>
                         </button>
                     </>
                 )}

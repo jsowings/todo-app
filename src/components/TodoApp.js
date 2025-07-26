@@ -31,6 +31,7 @@ const TodoApp = ({ user, onLogout }) => {
   const [weekViewHeight, setWeekViewHeight] = useState(400);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showCompleted, setShowCompleted] = useState(true);
 
   // Drag state
   const [draggedTask, setDraggedTask] = useState(null);
@@ -453,6 +454,8 @@ const TodoApp = ({ user, onLogout }) => {
           setTaskSort={setTaskSort}
           weekViewOpen={weekViewOpen}
           setWeekViewOpen={setWeekViewOpen}
+          showCompleted={showCompleted}
+          setShowCompleted={setShowCompleted}
           onLogout={onLogout}
         />
 
@@ -466,6 +469,7 @@ const TodoApp = ({ user, onLogout }) => {
                 theme={theme}
                 displayMode={projectDisplayMode}
                 expandedProjects={expandedProjects}
+                showCompleted={showCompleted}
                 onToggleExpanded={toggleProjectExpanded}
                 onAddProject={addProject}
                 onUpdateProject={updateProject}
@@ -494,6 +498,7 @@ const TodoApp = ({ user, onLogout }) => {
                 density={density}
                 theme={theme}
                 taskSort={taskSort}
+                showCompleted={showCompleted}
                 onAddTask={addTask}
                 onToggleTask={toggleTask}
                 onUpdateTask={updateTask}
